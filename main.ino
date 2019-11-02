@@ -10,4 +10,8 @@ void setup()
 
 void loop()
 {
+    move_servo(-1);
+    delay(1000);
+    move_servo(1);
+    delay(1000);
 }
