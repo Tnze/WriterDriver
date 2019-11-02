@@ -1,3 +1,8 @@
+/*
+  This:   绘图机固件
+  Board:  NodeMCU-ESP32
+  Author: Tnze
+*/
 #include <Arduino.h>
 #include "servo.h"
 
