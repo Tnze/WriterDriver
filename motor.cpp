@@ -13,20 +13,25 @@ void init_motor()
     motor_2 = {PIN_MOTOR_2, 0};
 }
 
-void Motor::Step()
+void Motor::SetOrigin() { location = 0; }
+
+void Motor::Move(int exc) { Move(exc, DEFAULT_MOTOR_RATE); }
+
+void Motor::Move(int exc, float rate)
 {
-    digitalWrite(stepPin, HIGH);
-    delayMicroseconds(3);
-    digitalWrite(stepPin, LOW);
-    delayMicroseconds(2);
+    // TODO: 计算时间
 }
 
-void Motor::Move(int step, int time)
+void Motor::RawMove(int steps, int duration)
 {
-    int delayTime = (time * 1000 - step * 5) / step;
-    for (int i = 0; i < step; i++)
+    int dt = duration / steps - 4; // 每步后延迟时间
+    dt = dt > 0 ? dt : 0;          // 延迟不能小于0
+    for (int i = 0; i < steps; i++)
     {
-        Step();
-        delayMicroseconds(delayTime);
+        digitalWrite(stepPin, HIGH);
+        delayMicroseconds(2);
+        digitalWrite(stepPin, LOW);
+        delayMicroseconds(2);
+        delayMicroseconds(dt);
     }
 }
