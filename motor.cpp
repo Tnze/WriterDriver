@@ -13,13 +13,23 @@ void init_motor()
     motor_2 = {PIN_MOTOR_2, 0};
 }
 
-void Motor::SetOrigin() { location = 0; }
+void Motor::Move(float exc) { Move(exc, DEFAULT_MOTOR_RATE); }
 
-void Motor::Move(int exc) { Move(exc, DEFAULT_MOTOR_RATE); }
-
-void Motor::Move(int exc, float rate)
+void Motor::Move(float exc, float rate)
 {
-    // TODO: 计算时间
+}
+
+void Motor::MoveTo(float pos) { MoveTo(pos, DEFAULT_MOTOR_RATE); }
+
+void Motor::MoveTo(float pos, float rate)
+{
+    int target = STEPS(pos);                              // 目标位置(步)
+    digitalWrite(dirPin, target > location ? HIGH : LOW); // 设置方向
+    int exc = target > location                           // 要移动的距离
+                  ? target - location
+                  : location - target;
+
+    RawMove(exc, exc / rate);
 }
 
 void Motor::RawMove(int steps, int duration)

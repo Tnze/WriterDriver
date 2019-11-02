@@ -15,4 +15,13 @@
 
 // -----------------OFFSET----------------
 #define NUMBER_OF_TOOTH 20 // 齿轮一圈的齿数
-#define TOOTH_PER_MM 2     // 皮带齿距(mm)
+#define TOOTH_DISTANCE 2   // 皮带齿距(mm)
+#define MOTOR_STEPS 200    // 步进电机转一圈步数
+
+// 移动length(mm)所需要的步数
+inline int STEPS(float length)
+{
+    // 电机转一圈移动的距离
+    const int round_distance = NUMBER_OF_TOOTH / TOOTH_DISTANCE;
+    return (length / round_distance * MOTOR_STEPS);
+}
