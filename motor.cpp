@@ -39,7 +39,6 @@ void Motor::RawMove(int steps, int duration)
         delayMicroseconds(duration);
         return;
     }
-    Serial.printf("[Debug]raw move: [%d, %d]\n", steps, duration);
     int dt = duration / steps - 4; // 每步后延迟时间
     dt = dt > 0 ? dt : 0;          // 延迟不能小于0
     for (int i = 0; i < steps; i++)
@@ -64,6 +63,9 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
     // 计算步数
     int excX = abs(targetX - mX.location);
     int excY = abs(targetY - mY.location);
+    // 记录位置
+    mX.location = targetX;
+    mY.location = targetY;
 
     int duration = sqrt(excX * excX + excY * excY) / rate * 1000;
 
@@ -75,6 +77,7 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
     else if (excX == 0)
     {
         mY.RawMove(excY, duration);
+
         return;
     }
     else if (excY == 0)
@@ -90,7 +93,7 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
         for (int ix = 0; ix < excX; ix++)
         {
             digitalWrite(mX.stepPin, HIGH);
-            if (ix > iy / excY * excX)
+            if (ix > iy * excX / excY)
             {
                 digitalWrite(mY.stepPin, HIGH);
                 iy++;
@@ -108,7 +111,7 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
         for (int iy = 0; iy < excY; iy++)
         {
             digitalWrite(mY.stepPin, HIGH);
-            if (iy > ix / excX * excY)
+            if (iy > ix * excY / excX)
             {
                 digitalWrite(mX.stepPin, HIGH);
                 ix++;
@@ -119,7 +122,4 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
             delayMicroseconds(dt);
         }
     }
-
-    mX.location = targetX;
-    mY.location = targetY;
 }

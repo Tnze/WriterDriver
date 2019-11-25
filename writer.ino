@@ -32,15 +32,16 @@ int exec_gcode(String line)
     case 'G':
         int first_space = line.indexOf(' ');
         int num = line.substring(1, first_space).toInt();
-        if (pen_status != num)
+        if (pen_status != num) // 需要调整笔到高度
         {
             Serial.println("pen " + num ? "down" : "up");
             move_servo((pen_status = num) ? PEN_DOWN : PEN_UP);
+            delay(30); // 等待舵机就位
         }
 
         String args = line.substring(first_space + 1);
         float x, y;
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < 2; i++) // 读取目标位置
         {
             char c = args[0];
             int fs = args.indexOf(' ');
