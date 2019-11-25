@@ -2,6 +2,7 @@ package main
 
 import (
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 
@@ -15,12 +16,18 @@ func main() {
 		log.Fatal(err)
 	}
 
-	go io.Copy(os.Stdout, s) // 打印串口接收到到数据
-
-	_, err = s.Write([]byte("G0 X0 Y0"))
-	if err != nil {
-		log.Fatal(err)
+	if len(os.Args) > 1 {
+		gcode, err := ioutil.ReadFile(os.Args[1])
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, err = s.Write(gcode)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
-	select {}
+	go io.Copy(s, os.Stdin)
+
+	io.Copy(os.Stdout, s) // 打印串口接收到到数据
 }
