@@ -26,9 +26,7 @@ void Motor::MoveTo(float pos, float rate)
 
     int target = STEPS(pos);                              // 目标位置(步)
     digitalWrite(dirPin, target > location ? HIGH : LOW); // 设置方向
-    int exc = target > location                           // 要移动的距离
-                  ? target - location
-                  : location - target;
+    int exc = abs(target - location);                     // 要移动的距离
 
     RawMove(exc, (exc / rate) * 1000);
     location = target;
@@ -52,4 +50,76 @@ void Motor::RawMove(int steps, int duration)
         delayMicroseconds(2);
         delayMicroseconds(dt);
     }
+}
+void MotorGroup::MoveTo(float posX, float posY) { MoveTo(posX, posY, DEFAULT_MOTOR_RATE); }
+
+void MotorGroup::MoveTo(float posX, float posY, float rate)
+{
+    // 计算目标位置
+    int targetX = STEPS(posX);
+    int targetY = STEPS(posY);
+    // 设置方向
+    digitalWrite(mX.dirPin, targetX > mX.location ? HIGH : LOW);
+    digitalWrite(mY.dirPin, targetY > mY.location ? HIGH : LOW);
+    // 计算步数
+    int excX = abs(targetX - mX.location);
+    int excY = abs(targetY - mY.location);
+
+    int duration = sqrt(excX * excX + excY * excY) / rate * 1000;
+
+    if (excX == 0 && excY == 0)
+    {
+        delayMicroseconds(duration);
+        return;
+    }
+    else if (excX == 0)
+    {
+        mY.RawMove(excY, duration);
+        return;
+    }
+    else if (excY == 0)
+    {
+        mX.RawMove(excX, duration);
+        return;
+    }
+
+    if (excX > excY)
+    {
+        int iy = 0;
+        int dt = duration / excX - 4; // 每步后延迟时间
+        for (int ix = 0; ix < excX; ix++)
+        {
+            digitalWrite(mX.stepPin, HIGH);
+            if (ix > iy / excY * excX)
+            {
+                digitalWrite(mY.stepPin, HIGH);
+                iy++;
+            }
+            delayMicroseconds(2);
+            digitalWrite(mX.stepPin, LOW);
+            digitalWrite(mY.stepPin, LOW);
+            delayMicroseconds(dt);
+        }
+    }
+    else
+    {
+        int ix = 0;
+        int dt = duration / excY - 4; // 每步后延迟时间
+        for (int iy = 0; iy < excY; iy++)
+        {
+            digitalWrite(mY.stepPin, HIGH);
+            if (iy > ix / excX * excY)
+            {
+                digitalWrite(mX.stepPin, HIGH);
+                ix++;
+            }
+            delayMicroseconds(2);
+            digitalWrite(mX.stepPin, LOW);
+            digitalWrite(mY.stepPin, LOW);
+            delayMicroseconds(dt);
+        }
+    }
+
+    mX.location = targetX;
+    mY.location = targetY;
 }
