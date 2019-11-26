@@ -3,7 +3,7 @@
 
 // -----------------RANGE-----------------
 #define PEN_UP 0.1f
-#define PEN_DOWN 0.5f
+#define PEN_DOWN 0.4f
 
 // ----------------DEFAULT----------------
 #define DEFAULT_SERVO_POS 0.5  // 默认舵机位置

@@ -36,7 +36,7 @@ int exec_gcode(String line)
         {
             Serial.println("pen " + num ? "down" : "up");
             move_servo((pen_status = num) ? PEN_DOWN : PEN_UP);
-            delay(30); // 等待舵机就位
+            delay(300); // 等待舵机就位
         }
 
         String args = line.substring(first_space + 1);
