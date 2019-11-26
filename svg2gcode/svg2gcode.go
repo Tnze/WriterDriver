@@ -1,0 +1,113 @@
+package main
+
+import (
+	"encoding/xml"
+	"fmt"
+	"io"
+	"log"
+	"math"
+	"os"
+	"strings"
+)
+
+var output io.Writer = os.Stdout
+
+const k = 0.5
+
+func main() {
+	var r io.Reader
+	var err error
+	if len(os.Args) < 2 {
+		r = os.Stdin
+	} else {
+		r, err = os.Open(os.Args[1])
+		if err != nil {
+			log.Fatal("open file fail: ", err)
+		}
+	}
+
+	decoder := xml.NewDecoder(r)
+	for {
+		token, err := decoder.Token()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			log.Fatal("decode token error: ", err)
+		}
+
+		if se, ok := token.(xml.StartElement); ok {
+			switch se.Name.Local {
+			case "path": // path标签
+				for _, attr := range se.Attr {
+					if attr.Name.Local == "d" {
+						findPath(attr.Value)
+					}
+				}
+			}
+		}
+	}
+}
+
+func findPath(path string) {
+	// log.Print(path)
+	r := strings.NewReader(path)
+
+	type word struct {
+		tk   byte
+		x, y float64
+	}
+
+	ch := make(chan word)
+	go func() { // 读取word并发送到ch
+		for {
+			var w word
+			if _, err := fmt.Fscanf(r, "%c", &w.tk); err != nil {
+				log.Fatal("parse path error: ", err)
+			}
+
+			if w.tk == 'z' {
+				break
+			}
+
+			if _, err := fmt.Fscanf(r, "%f,%f", &w.x, &w.y); err != nil {
+				log.Fatal("parse path error: ", err)
+			}
+
+			// log.Printf("[%c] %.2f, %.2f", w.tk, w.x, w.y)
+			// 缩放
+			w.x *= k
+			w.y *= k
+			ch <- w
+		}
+		close(ch)
+	}()
+
+	var x, y float64
+	for v := range ch {
+		switch v.tk {
+		case 'm': // 起始
+			fmt.Fprintf(output, "G0 X%f Y%f\n", v.x, v.y)
+			x, y = v.x, v.y
+		case 'l': // 直线
+			fmt.Fprintf(output, "G1 X%f Y%f\n", v.x, v.y)
+			x, y = v.x+x, v.y+y
+		case 'c': // 三次贝塞尔
+			b := [3]word{v, <-ch, <-ch} // 读入三组坐标(包括当前的一组)
+			for t := 0.0; t <= 1; t += 1.0 / math.Min(10, 0.5*math.Sqrt((x-b[2].x)*(x-b[2].x))+(y-b[2].y)*(y-b[2].y)) {
+				c1 := (1 - t) * (1 - t) * (1 - t)
+				c2 := 3 * t * (1 - t) * (1 - t)
+				c3 := 3 * t * t * (1 - t)
+				c4 := t * t * t
+
+				bx := c1*x + c2*(x+b[0].x) + c3*(x+b[1].x) + c4*(x+b[2].x)
+				by := c1*y + c2*(y+b[0].y) + c3*(y+b[1].y) + c4*(y+b[2].y)
+
+				fmt.Fprintf(output, "G1 X%f Y%f\n", bx, by)
+			}
+
+			x, y = x+b[2].x, y+b[2].y
+		default:
+			log.Panicf("unsupported path attr d[%c]", v.tk)
+		}
+	}
+}
