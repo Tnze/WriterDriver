@@ -16,7 +16,10 @@ import (
 
 var output io.Writer = os.Stdout
 
-const k = 0.5
+const mirror = true
+const k = -0.05
+const offsetX = 12
+const offsetY = -16
 
 func main() {
 	var r io.Reader
@@ -50,6 +53,8 @@ func main() {
 			}
 		}
 	}
+
+	fmt.Fprintf(output, "G0 X0 Y0\n")
 }
 
 func findPath(path string) {
@@ -66,7 +71,7 @@ func findPath(path string) {
 		for {
 			var w word
 			if _, err := fmt.Fscanf(r, "%c", &w.tk); err != nil {
-				log.Fatal("parse path error: ", err)
+				log.Fatal("parse path error1: ", err)
 			}
 
 			if w.tk == 'z' {
@@ -74,16 +79,18 @@ func findPath(path string) {
 			}
 
 			if _, err := fmt.Fscanf(r, "%f,%f", &w.x, &w.y); err != nil {
-				log.Fatal("parse path error: ", err)
+				log.Fatal("parse path error2: ", err)
 			}
-
-			// 交换x、y
-			w.x,w.y=w.y,w.x
-
-			// log.Printf("[%c] %.2f, %.2f", w.tk, w.x, w.y)
+			if mirror {
+				w.x = -w.x
+			}
 			// 缩放
 			w.x *= k
 			w.y *= k
+			// 交换x、y
+			w.x, w.y = w.y, w.x
+
+			// log.Printf("[%c] %.2f, %.2f", w.tk, w.x, w.y)
 			ch <- w
 		}
 		close(ch)
@@ -93,14 +100,14 @@ func findPath(path string) {
 	for v := range ch {
 		switch v.tk {
 		case 'm': // 起始
-			fmt.Fprintf(output, "G0 X%f Y%f\n", v.x, v.y)
+			fmt.Fprintf(output, "G0 X%f Y%f\n", v.x+offsetX, v.y+offsetY)
 			x, y = v.x, v.y
 		case 'l': // 直线
-			fmt.Fprintf(output, "G1 X%f Y%f\n", v.x+x, v.y+y)
+			fmt.Fprintf(output, "G1 X%f Y%f\n", v.x+x+offsetX, v.y+y+offsetY)
 			x, y = v.x+x, v.y+y
 		case 'c': // 三次贝塞尔
-			b := [3]word{v, <-ch, <-ch} // 读入三组坐标(包括当前的一组)
-			for t := 0.0; t <= 1; t += 1.0 / math.Min(100,math.Max(3, 0.01*math.Sqrt((x-b[2].x)*(x-b[2].x))+(y-b[2].y)*(y-b[2].y)) ){// 估计曲线长度确定插值数
+			b := [3]word{v, <-ch, <-ch}                                                                                            // 读入三组坐标(包括当前的一组)
+			for t := 0.0; t <= 1; t += 1.0 / math.Min(10, math.Max(3, 0*math.Sqrt((x-b[2].x)*(x-b[2].x))+(y-b[2].y)*(y-b[2].y))) { // 估计曲线长度确定插值数
 				c1 := (1 - t) * (1 - t) * (1 - t)
 				c2 := 3 * t * (1 - t) * (1 - t)
 				c3 := 3 * t * t * (1 - t)
@@ -109,7 +116,7 @@ func findPath(path string) {
 				bx := c1*x + c2*(x+b[0].x) + c3*(x+b[1].x) + c4*(x+b[2].x)
 				by := c1*y + c2*(y+b[0].y) + c3*(y+b[1].y) + c4*(y+b[2].y)
 
-				fmt.Fprintf(output, "G1 X%f Y%f\n", bx, by)
+				fmt.Fprintf(output, "G1 X%f Y%f\n", bx+offsetX, by+offsetY)
 			}
 
 			x, y = x+b[2].x, y+b[2].y

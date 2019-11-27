@@ -106,10 +106,11 @@ void loop()
     cmd = cmd.substring(0, cmd.indexOf(';')); // 去除注释
 
     int line_code;
+    bool checked = cmd[0] == 'N';
 
     if (!checkCMD(cmd, line_code)) // 检查不通过，要求重发
         Serial.printf("rs %d error: check code error\n", line_code);
-    else if (cmd[0] == 'N' && line_code != last_line_code + 1) // 行号不对，要求重发
+    else if (checked && line_code != last_line_code + 1) // 行号不对，要求重发
         Serial.printf("rs %d error: line number is not current line + 1. last line: %d\n",
                       last_line_code + 1,
                       last_line_code);
