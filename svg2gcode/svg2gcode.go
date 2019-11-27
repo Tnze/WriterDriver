@@ -1,3 +1,7 @@
+// svg2gcode实现了从svg图片到gcode的转换
+// 当前只转换svg中的path路径，并且只转换其中的l和c，
+// 即线段和三次贝塞尔曲线，而且贝塞尔曲线没有做匀速化。
+// 是一个非常原始简陋的转换器。
 package main
 
 import (
@@ -73,6 +77,9 @@ func findPath(path string) {
 				log.Fatal("parse path error: ", err)
 			}
 
+			// 交换x、y
+			w.x,w.y=w.y,w.x
+
 			// log.Printf("[%c] %.2f, %.2f", w.tk, w.x, w.y)
 			// 缩放
 			w.x *= k
@@ -89,11 +96,11 @@ func findPath(path string) {
 			fmt.Fprintf(output, "G0 X%f Y%f\n", v.x, v.y)
 			x, y = v.x, v.y
 		case 'l': // 直线
-			fmt.Fprintf(output, "G1 X%f Y%f\n", v.x, v.y)
+			fmt.Fprintf(output, "G1 X%f Y%f\n", v.x+x, v.y+y)
 			x, y = v.x+x, v.y+y
 		case 'c': // 三次贝塞尔
 			b := [3]word{v, <-ch, <-ch} // 读入三组坐标(包括当前的一组)
-			for t := 0.0; t <= 1; t += 1.0 / math.Min(10, 0.5*math.Sqrt((x-b[2].x)*(x-b[2].x))+(y-b[2].y)*(y-b[2].y)) {
+			for t := 0.0; t <= 1; t += 1.0 / math.Min(100,math.Max(3, 0.01*math.Sqrt((x-b[2].x)*(x-b[2].x))+(y-b[2].y)*(y-b[2].y)) ){// 估计曲线长度确定插值数
 				c1 := (1 - t) * (1 - t) * (1 - t)
 				c2 := 3 * t * (1 - t) * (1 - t)
 				c3 := 3 * t * t * (1 - t)

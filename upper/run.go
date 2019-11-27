@@ -26,7 +26,7 @@ var erroLogger = log.New(colorable.NewColorableStdout(), red+"error", log.LstdFl
 var normLogger = log.New(colorable.NewColorableStdout(), norm, log.LstdFlags)
 var succLogger = log.New(colorable.NewColorableStdout(), green+"success", log.LstdFlags)
 
-var okWaiter = make(chan string, 10) // 命令确认通道，容量决定了发送到下位机的最多命令数
+var okWaiter = make(chan string, 5) // 命令确认通道，容量决定了发送到下位机的最多命令数
 
 func main() {
 	log.SetOutput(colorable.NewColorableStdout())
