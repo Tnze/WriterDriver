@@ -5,13 +5,17 @@
 package main
 
 import (
+	"bufio"
 	"encoding/xml"
 	"fmt"
 	"io"
 	"log"
 	"math"
 	"os"
+	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 var output io.Writer = os.Stdout
@@ -22,6 +26,7 @@ const offsetX = 12
 const offsetY = -16
 
 func main() {
+	log.SetFlags(log.Lshortfile)
 	var r io.Reader
 	var err error
 	if len(os.Args) < 2 {
@@ -57,56 +62,85 @@ func main() {
 	fmt.Fprintf(output, "G0 X0 Y0\n")
 }
 
+type pathWord struct {
+	tk   rune
+	args []float64
+}
+
 func findPath(path string) {
 	// log.Print(path)
-	r := strings.NewReader(path)
+	var r io.Reader = strings.NewReader(path)
 
-	type word struct {
-		tk   byte
-		x, y float64
-	}
+	ch := make(chan pathWord)
+	go readGcode(r, ch) // 读取word并发送到ch
+	sendGcode(ch)       // 从ch读word并发送到串口
+}
 
-	ch := make(chan word)
-	go func() { // 读取word并发送到ch
-		for {
-			var w word
-			if _, err := fmt.Fscanf(r, "%c", &w.tk); err != nil {
-				log.Fatal("parse path error1: ", err)
-			}
+func readGcode(r io.Reader, cmd chan<- pathWord) (err error) {
+	scanner := bufio.NewScanner(r)
+	scanner.Split(scanPathCmd)
 
-			if w.tk == 'z' {
-				break
-			}
+	for scanner.Scan() {
+		var w pathWord
 
-			if _, err := fmt.Fscanf(r, "%f,%f", &w.x, &w.y); err != nil {
-				log.Fatal("parse path error2: ", err)
-			}
-			if mirror {
-				w.x = -w.x
-			}
-			// 缩放
-			w.x *= k
-			w.y *= k
-			// 交换x、y
-			w.x, w.y = w.y, w.x
-
-			// log.Printf("[%c] %.2f, %.2f", w.tk, w.x, w.y)
-			ch <- w
+		word := scanner.Text()
+		if len(word) != 1 {
+			return fmt.Errorf("d should start with a single letter, but got %q", word)
 		}
-		close(ch)
-	}()
 
+		w.tk = rune(word[0])
+		argsN := arglen[w.tk]
+		w.args = make([]float64, argsN)
+		for i := 0; i < argsN; i++ {
+			if !scanner.Scan() {
+				return fmt.Errorf("args not enough of command[%c]", w.tk)
+			}
+			w.args[i], err = strconv.ParseFloat(scanner.Text(), 64)
+			if err != nil {
+				return
+			}
+		}
+
+		// if mirror {
+		// 	w.x = -w.x
+		// }
+		// // 缩放
+		// w.x *= k
+		// w.y *= k
+		// // 交换x、y
+		// w.x, w.y = w.y, w.x
+		cmd <- w
+	}
+	close(cmd)
+	return
+}
+
+var arglen = map[rune]int{
+	'M': 2, 'm': 2,
+	'L': 2, 'l': 2,
+	'C': 6, 'c': 6,
+}
+
+func sendGcode(ch <-chan pathWord) {
 	var x, y float64
 	for v := range ch {
+		// 把相对定位转换为绝对定位
+		if unicode.IsLower(v.tk) {
+			v.x += x
+			v.y += y
+			v.tk = unicode.ToUpper(v.tk)
+		}
 		switch v.tk {
-		case 'm': // 起始
+		case 'M': // Move to
 			fmt.Fprintf(output, "G0 X%f Y%f\n", v.x+offsetX, v.y+offsetY)
 			x, y = v.x, v.y
-		case 'l': // 直线
+
+		case 'L': // line to
 			fmt.Fprintf(output, "G1 X%f Y%f\n", v.x+x+offsetX, v.y+y+offsetY)
-			x, y = v.x+x, v.y+y
-		case 'c': // 三次贝塞尔
-			b := [3]word{v, <-ch, <-ch}                                                                                            // 读入三组坐标(包括当前的一组)
+			x, y = v.x, v.y
+
+		case 'C': // curve to
+			b := [3]pathWord{v, <-ch, <-ch}                                                                                        // 读入三组坐标(包括当前的一组)
 			for t := 0.0; t <= 1; t += 1.0 / math.Min(10, math.Max(3, 0*math.Sqrt((x-b[2].x)*(x-b[2].x))+(y-b[2].y)*(y-b[2].y))) { // 估计曲线长度确定插值数
 				c1 := (1 - t) * (1 - t) * (1 - t)
 				c2 := 3 * t * (1 - t) * (1 - t)
@@ -121,7 +155,37 @@ func findPath(path string) {
 
 			x, y = x+b[2].x, y+b[2].y
 		default:
-			log.Panicf("unsupported path attr d[%c]", v.tk)
+			log.Panicf("unsupported path cmd[%c]", v.tk)
 		}
 	}
+}
+
+// 扫描类似 M250 150 L150 350 L350 350 Z的数据
+func scanPathCmd(data []byte, atEOF bool) (advance int, token []byte, err error) {
+	// Skip leading spaces.
+	start := 0
+	for width := 0; start < len(data); start += width {
+		var r rune
+		r, width = utf8.DecodeRune(data[start:])
+		if !unicode.IsSpace(r) && r != ',' {
+			break
+		}
+	}
+	if r, width := utf8.DecodeRune(data[start:]); unicode.IsLetter(r) {
+		return start + width, data[start : start+width], nil
+	}
+	// Scan until space, marking end of word.
+	for width, i := 0, start; i < len(data); i += width {
+		var r rune
+		r, width = utf8.DecodeRune(data[i:])
+		if unicode.IsSpace(r) || r == ',' || unicode.IsLetter(r) {
+			return i, data[start:i], nil
+		}
+	}
+	// If we're at EOF, we have a final, non-empty, non-terminated word. Return it.
+	if atEOF && len(data) > start {
+		return len(data), data[start:], nil
+	}
+	// Request more data.
+	return start, nil, nil
 }
