@@ -74,17 +74,6 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
         delayMicroseconds(duration);
         return;
     }
-    else if (excX == 0)
-    {
-        mY.RawMove(excY, duration);
-
-        return;
-    }
-    else if (excY == 0)
-    {
-        mX.RawMove(excX, duration);
-        return;
-    }
 
     if (excX > excY)
     {
@@ -93,7 +82,7 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
         for (int ix = 0; ix < excX; ix++)
         {
             digitalWrite(mX.stepPin, HIGH);
-            if (ix > iy * excX / excY)
+            if (excY && ix > iy * excX / excY)
             {
                 digitalWrite(mY.stepPin, HIGH);
                 iy++;
@@ -103,6 +92,12 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
             digitalWrite(mY.stepPin, LOW);
             delayMicroseconds(dt);
         }
+        while (iy < excY)
+        {
+            digitalWrite(mY.stepPin, HIGH);
+            delayMicroseconds(2);
+            digitalWrite(mY.stepPin, LOW);
+        }
     }
     else
     {
@@ -111,7 +106,7 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
         for (int iy = 0; iy < excY; iy++)
         {
             digitalWrite(mY.stepPin, HIGH);
-            if (iy > ix * excY / excX)
+            if (excX && iy > ix * excY / excX)
             {
                 digitalWrite(mX.stepPin, HIGH);
                 ix++;
@@ -120,6 +115,12 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
             digitalWrite(mX.stepPin, LOW);
             digitalWrite(mY.stepPin, LOW);
             delayMicroseconds(dt);
+        }
+        while (ix < excX)
+        {
+            digitalWrite(mX.stepPin, HIGH);
+            delayMicroseconds(2);
+            digitalWrite(mX.stepPin, LOW);
         }
     }
 }

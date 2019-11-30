@@ -11,8 +11,8 @@ import (
 )
 
 func main() {
-	const w, h = 800, 600
-	const k = 20.0
+	const w, h = 2560, 1600
+	const k = 1.0
 
 	im := image.NewRGBA(image.Rectangle{Max: image.Point{X: w, Y: h}})
 	gc := draw2dimg.NewGraphicContext(im)

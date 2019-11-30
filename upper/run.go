@@ -20,16 +20,15 @@ const (
 	red    = "\033[31m"
 )
 
-var sendLogger = log.New(colorable.NewColorableStdout(), yellow+"--->", log.LstdFlags)
-var recvLogger = log.New(colorable.NewColorableStdout(), blue+"<---", log.LstdFlags)
-var erroLogger = log.New(colorable.NewColorableStdout(), red+"error", log.LstdFlags)
-var normLogger = log.New(colorable.NewColorableStdout(), norm, log.LstdFlags)
-var succLogger = log.New(colorable.NewColorableStdout(), green+"success", log.LstdFlags)
+var sendLogger = log.New(colorable.NewColorableStdout(), yellow+"<--- ", log.Ltime|log.Lmicroseconds)
+var recvLogger = log.New(colorable.NewColorableStdout(), blue+"---> ", log.Ltime|log.Lmicroseconds)
+var erroLogger = log.New(colorable.NewColorableStdout(), red+"-!!- ", log.Ltime|log.Lmicroseconds)
+var normLogger = log.New(colorable.NewColorableStdout(), norm+"---- ", log.Ltime|log.Lmicroseconds)
+var succLogger = log.New(colorable.NewColorableStdout(), green+"-ok- ", log.Ltime|log.Lmicroseconds)
 
 var okWaiter = make(chan string, 5) // 命令确认通道，容量决定了发送到下位机的最多命令数
 
 func main() {
-	log.SetOutput(colorable.NewColorableStdout())
 
 	c := &serial.Config{Name: "/dev/cu.SLAB_USBtoUART", Baud: 115200}
 	s, err := serial.OpenPort(c)
