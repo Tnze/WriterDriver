@@ -8,17 +8,33 @@
 #include "servo.h"
 #include "motor.h"
 
+#ifdef BLUETOOTH
+#include "BluetoothSerial.h"
+#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
+#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
+#endif
+BluetoothSerial SerialBT;
+#endif
+
 MotorGroup motors{
     Motor(PIN_MOTOR_1),
     Motor(PIN_MOTOR_2),
 };
 
+Stream *Host;
+
 void setup()
 {
+#ifdef BLUETOOTH
+    SerialBT.begin("TnzeWriter");
+    Host = &SerialBT;
+#elif
     Serial.begin(115200);
+    Host = &Serial;
+#endif
     init_servo();
     move_servo(PEN_UP);
-    Serial.println("//printer lunched");
+    Host->println("//printer lunched");
 }
 
 int pen_status = 0;     // 笔的状态，0为提笔，1为落笔
@@ -27,7 +43,7 @@ int last_line_code = 0; // 串口行号
 // 执行G-code，注意该解释器是随手写的，不健壮
 int exec_gcode(String line)
 {
-    Serial.println("// received: " + line);
+    Host->println("// received: " + line);
     String args;
     int first_space = line.indexOf(' ');
     int num = line.substring(1, first_space).toInt();
@@ -36,7 +52,7 @@ int exec_gcode(String line)
     case 'G':
         if (pen_status != num) // 需要调整笔到高度
         {
-            // Serial.println("pen " + num ? "down" : "up");
+            // Host->println("pen " + num ? "down" : "up");
             move_servo((pen_status = num) ? PEN_DOWN : PEN_UP);
             delay(300); // 等待舵机就位
         }
@@ -53,7 +69,7 @@ int exec_gcode(String line)
                 break;
             args = args.substring(fs + 1);
         }
-        Serial.printf("// move to (%f, %f)\n", x, y);
+        Host->printf("// move to (%f, %f)\n", x, y);
         motors.MoveTo(x, y);
         break;
 
@@ -77,10 +93,10 @@ int exec_gcode(String line)
         break;
 
     default:
-        Serial.println("// unknown command " + line);
+        Host->println("// unknown command " + line);
     }
 
-    Serial.println("ok");
+    Host->println("ok");
     return 0;
 }
 
@@ -116,7 +132,7 @@ bool checkCMD(String &cmd, int &line_code)
 void loop()
 {
     // 从串口接受指令
-    String cmd = Serial.readStringUntil('\n'); // 读取一行
+    String cmd = Host->readStringUntil('\n'); // 读取一行
 
     if (!cmd.length())
         return;
@@ -127,11 +143,11 @@ void loop()
     bool checked = cmd[0] == 'N';
 
     if (!checkCMD(cmd, line_code)) // 检查不通过，要求重发
-        Serial.printf("rs %d error: check code error\n", line_code);
+        Host->printf("rs %d error: check code error\n", line_code);
     else if (checked && line_code != last_line_code + 1) // 行号不对，要求重发
-        Serial.printf("rs %d error: line number is not current line + 1. last line: %d\n",
-                      last_line_code + 1,
-                      last_line_code);
+        Host->printf("rs %d error: line number is not current line + 1. last line: %d\n",
+                     last_line_code + 1,
+                     last_line_code);
     else
     {
         exec_gcode(cmd);

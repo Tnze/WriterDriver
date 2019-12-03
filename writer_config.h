@@ -1,6 +1,9 @@
 // ================SETTINGS===============
 #include <Arduino.h>
 
+// ----------------CONNECTION-------------
+#define BLUETOOTH // 使用蓝牙串口
+
 // -----------------RANGE-----------------
 #define PEN_UP 0.1f
 #define PEN_DOWN 0.4f
