@@ -21,19 +21,19 @@ void setup()
     Serial.println("//printer lunched");
 }
 
-int pen_status = 0; // 笔的状态，0为提笔，1为落笔
+int pen_status = 0;     // 笔的状态，0为提笔，1为落笔
+int last_line_code = 0; // 串口行号
 
 // 执行G-code，注意该解释器是随手写的，不健壮
 int exec_gcode(String line)
 {
     Serial.println("// received: " + line);
     String args;
-    int first_space, num;
+    int first_space = line.indexOf(' ');
+    int num = line.substring(1, first_space).toInt();
     switch (line[0])
     {
     case 'G':
-        first_space = line.indexOf(' ');
-        num = line.substring(1, first_space).toInt();
         if (pen_status != num) // 需要调整笔到高度
         {
             // Serial.println("pen " + num ? "down" : "up");
@@ -55,6 +55,25 @@ int exec_gcode(String line)
         }
         Serial.printf("// move to (%f, %f)\n", x, y);
         motors.MoveTo(x, y);
+        break;
+
+    case 'M':
+        switch (num)
+        {
+        case 110: // 重置行号
+            args = line.substring(first_space + 1);
+            for (;;) // 读取目标位置
+            {
+                char c = args[0];
+                int fs = args.indexOf(' ');
+                if (c == 'N')
+                    last_line_code = (fs == -1 ? args.substring(1) : args.substring(1, fs)).toInt();
+                if (fs == -1)
+                    break;
+                args = args.substring(fs + 1);
+            }
+            break;
+        }
         break;
 
     default:
@@ -94,7 +113,6 @@ bool checkCMD(String &cmd, int &line_code)
     return cs == chek_code;
 }
 
-int last_line_code = 0;
 void loop()
 {
     // 从串口接受指令
@@ -117,6 +135,7 @@ void loop()
     else
     {
         exec_gcode(cmd);
-        last_line_code++;
+        if (checked)
+            last_line_code++;
     }
 }

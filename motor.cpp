@@ -5,7 +5,7 @@
 inline int STEPS(float length)
 {
     // 电机转一圈移动的距离
-    const int round_distance = NUMBER_OF_TOOTH / TOOTH_DISTANCE;
+    const int round_distance = NUMBER_OF_TOOTH * TOOTH_DISTANCE;
     return (length / round_distance * MOTOR_STEPS);
 }
 
@@ -97,6 +97,7 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
             digitalWrite(mY.stepPin, HIGH);
             delayMicroseconds(2);
             digitalWrite(mY.stepPin, LOW);
+            iy++;
         }
     }
     else
@@ -121,6 +122,7 @@ void MotorGroup::MoveTo(float posX, float posY, float rate)
             digitalWrite(mX.stepPin, HIGH);
             delayMicroseconds(2);
             digitalWrite(mX.stepPin, LOW);
+            ix++;
         }
     }
 }

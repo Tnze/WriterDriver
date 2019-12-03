@@ -27,6 +27,7 @@ var normLogger = log.New(colorable.NewColorableStdout(), norm+"---- ", log.Ltime
 var succLogger = log.New(colorable.NewColorableStdout(), green+"-ok- ", log.Ltime|log.Lmicroseconds)
 
 var okWaiter = make(chan string, 5) // 命令确认通道，容量决定了发送到下位机的最多命令数
+var resendCh = make(chan int, 5)    // 重发通道
 
 func main() {
 
@@ -35,6 +36,7 @@ func main() {
 	if err != nil {
 		normLogger.Fatal(err)
 	}
+	fmt.Fprintln(s, "M110 N0")
 	go func() {
 		// 发送文件
 		if len(os.Args) > 1 {
