@@ -26,12 +26,11 @@ Stream *Host;
 void setup()
 {
 #ifdef BLUETOOTH
-    SerialBT.begin("TnzeWriter");
-    Host = &SerialBT;
-#elif
+    SerialBT.begin(BLUETOOTH);
+#endif
     Serial.begin(115200);
     Host = &Serial;
-#endif
+
     init_servo();
     move_servo(PEN_UP);
     Host->println("//printer lunched");
@@ -132,6 +131,14 @@ bool checkCMD(String &cmd, int &line_code)
 void loop()
 {
     // 从串口接受指令
+    if (Serial.available())
+        Host = &Serial;
+#ifdef BLUETOOTH
+    else if (SerialBT.available())
+        Host = &SerialBT;
+#endif
+    else
+        return;
     String cmd = Host->readStringUntil('\n'); // 读取一行
 
     if (!cmd.length())

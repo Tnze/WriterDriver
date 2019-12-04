@@ -22,8 +22,6 @@ void Motor::MoveTo(float pos) { MoveTo(pos, DEFAULT_MOTOR_RATE); }
 
 void Motor::MoveTo(float pos, float rate)
 {
-    Serial.printf("[Debug]move to: [%d, %.2f]\n", pos, rate);
-
     int target = STEPS(pos);                              // 目标位置(步)
     digitalWrite(dirPin, target > location ? HIGH : LOW); // 设置方向
     int exc = abs(target - location);                     // 要移动的距离

@@ -2,7 +2,7 @@
 #include <Arduino.h>
 
 // ----------------CONNECTION-------------
-#define BLUETOOTH // 使用蓝牙串口
+#define BLUETOOTH "TnzeWriter" // 蓝牙设备名，注释掉这行以取消蓝牙支持
 
 // -----------------RANGE-----------------
 #define PEN_UP 0.1f
